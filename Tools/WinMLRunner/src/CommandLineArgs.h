@@ -31,6 +31,10 @@ public:
     const std::wstring& ModelPath() const { return m_modelPath; }
     const std::wstring& TensorOutputPath() const { return m_tensorOutputPath; }
 
+#if MCDM_BUILD
+    UINT GetGPUAdapterIndex() const { return m_adapterIndex; }
+#endif
+
     bool UseRGB() const
     {
         // If an image is specified without flags, we load it as a BGR image by default
@@ -134,6 +138,9 @@ private:
     bool m_autoScale = false;
     bool m_perfOutput = false;
     BitmapInterpolationMode m_autoScaleInterpMode = BitmapInterpolationMode::Cubic;
+#if MCDM_BUILD
+    UINT m_adapterIndex = -1;
+#endif
     bool m_saveTensor = false;
     std::string m_saveTensorMode = "First";
 

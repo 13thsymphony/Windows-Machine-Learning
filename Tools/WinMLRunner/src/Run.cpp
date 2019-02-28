@@ -8,6 +8,11 @@
 #include "Run.h"
 #include "Scenarios.h"
 
+#if MCDM_BUILD
+#include <initguid.h>
+#include "dxcore.h"
+#endif
+
 #define THROW_IF_FAILED(hr) { if (FAILED(hr)) throw hresult_error(hr); }
 using namespace winrt::Windows::Graphics::DirectX::Direct3D11;
 
@@ -180,6 +185,26 @@ HRESULT EvaluateModel(
     return S_OK;
 }
 
+#if MCDM_BUILD
+HRESULT CreateDXGIFactory2SEH(void** dxgiFactory)
+{
+    // Recover from delay-load module failure.
+    HRESULT hr;
+
+    __try
+    {
+        hr = CreateDXGIFactory2(0, __uuidof(IDXGIFactory4), dxgiFactory);
+    }
+    __except (GetExceptionCode() == VcppException(ERROR_SEVERITY_ERROR, ERROR_MOD_NOT_FOUND) ?
+        EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+    {
+        hr = HRESULT_FROM_WIN32(ERROR_MOD_NOT_FOUND);
+    }
+
+    return hr;
+}
+#endif
+
 // Binds and evaluates the user-specified model and outputs success/failure for each step. If the
 // perf flag is used, it will output the CPU, GPU, and wall-clock time for each step to the
 // command-line and to a CSV file.
@@ -201,6 +226,10 @@ HRESULT EvaluateModel(
 
     LearningModelSession session = nullptr;
     IDirect3DDevice winrtDevice = nullptr;
+
+#if MCDM_BUILD
+    UINT adapterIndex = args.GetGPUAdapterIndex();
+#endif
 
     try
     {
@@ -256,6 +285,107 @@ HRESULT EvaluateModel(
                 WINML_PROFILING_STOP(profiler, WINML_MODEL_TEST_PERF::CREATE_SESSION);
             }
         }
+#if MCDM_BUILD
+        else if ((TypeHelper::GetWinmlDeviceKind(deviceType) != LearningModelDeviceKind::Cpu) && (adapterIndex != -1))
+        {
+            com_ptr<::IUnknown> spUnkLearningModelDevice;
+
+            constexpr D3D_FEATURE_LEVEL D3D_FEATURE_LEVEL_1_0_CORE = static_cast<D3D_FEATURE_LEVEL>(0x1000);
+
+            HRESULT hr = S_OK;
+            IUnknown* pAdapter = NULL;
+            D3D_FEATURE_LEVEL d3dFeatureLevel = D3D_FEATURE_LEVEL_1_0_CORE;
+            D3D12_COMMAND_LIST_TYPE commandQueueType = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+
+            auto dxcoreDll = LoadLibrary(L"DXCore.dll");
+
+            if (dxcoreDll == NULL) throw hresult_error(GetLastError());
+
+            auto dxcoreCreateAdapterFactory = reinterpret_cast<decltype(&DXCoreCreateAdapterFactory)>(
+                GetProcAddress(dxcoreDll, "DXCoreCreateAdapterFactory")
+                );
+
+            if (dxcoreCreateAdapterFactory == NULL) throw hresult_error(GetLastError());
+
+            // TODO: See mscodehub WindowsAI bug 8759
+            // Eventually replace with: com_ptr<IDXCoreAdapterFactory> spFactory;
+            MIDL_INTERFACE("e4212a94-d660-480e-82b3-006e050a44c0")
+                IDXCoreAdapterFactory_Internal : public IDXCoreAdapterFactory
+            {
+            };
+            com_ptr<IDXCoreAdapterFactory_Internal> spFactory;
+
+            hr = dxcoreCreateAdapterFactory(IID_PPV_ARGS(spFactory.put()));
+            THROW_IF_FAILED(hr);
+
+            com_ptr<IDXCoreAdapterList> spAdapterList;
+
+            const GUID dxGUIDs[] = { DXCORE_ADAPTER_ATTRIBUTE_D3D12_CORE_COMPUTE };
+
+            hr = spFactory->GetAdapterList(dxGUIDs, ARRAYSIZE(dxGUIDs), spAdapterList.put());
+            THROW_IF_FAILED(hr);
+
+            com_ptr<IDXCoreAdapter> spAdapter;
+            hr = spAdapterList->GetItem(adapterIndex, spAdapter.put());
+            THROW_IF_FAILED(hr);
+
+            CHAR driverDescription[128];
+
+            spAdapter->QueryProperty(DXCoreProperty::DriverDescription, sizeof(driverDescription), driverDescription);
+            printf("Use adapter : %s\n", driverDescription);
+
+            pAdapter = spAdapter.get();
+
+            com_ptr<IDXGIAdapter> spDxgiAdapter;
+
+            if (spAdapter->IsDXAttributeSupported(DXCORE_ADAPTER_ATTRIBUTE_D3D12_GRFX))
+            {
+                d3dFeatureLevel = D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_11_0;
+                commandQueueType = D3D12_COMMAND_LIST_TYPE_DIRECT;
+
+                com_ptr<IDXGIFactory4> dxgiFactory4;
+
+                try
+                {
+                    hr = CreateDXGIFactory2SEH(dxgiFactory4.put_void());
+                }
+                catch (...)
+                {
+                    hr = E_FAIL;
+                }
+
+                if (hr == S_OK)
+                {
+                    LUID adapterLuid;
+                    spAdapter->GetLUID(&adapterLuid);
+
+                    hr = dxgiFactory4->EnumAdapterByLuid(adapterLuid, __uuidof(IDXGIAdapter), spDxgiAdapter.put_void());
+                    if (hr == S_OK)
+                    {
+                        pAdapter = spDxgiAdapter.get();
+                    }
+                }
+            }
+
+            com_ptr<ID3D12Device> d3d12Device;
+            hr = D3D12CreateDevice(pAdapter, d3dFeatureLevel, __uuidof(ID3D12Device), d3d12Device.put_void());
+            THROW_IF_FAILED(hr);
+
+            com_ptr<ID3D12CommandQueue> d3d12CommandQueue;
+            D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
+            commandQueueDesc.Type = commandQueueType;
+
+            hr = d3d12Device->CreateCommandQueue(&commandQueueDesc, __uuidof(ID3D12CommandQueue), d3d12CommandQueue.put_void());
+            THROW_IF_FAILED(hr);
+
+            auto factory = get_activation_factory<LearningModelDevice, ILearningModelDeviceFactoryNative>();
+
+            hr = factory->CreateFromD3D12CommandQueue(d3d12CommandQueue.get(), spUnkLearningModelDevice.put());
+            THROW_IF_FAILED(hr);
+
+            session = LearningModelSession(model, spUnkLearningModelDevice.as<LearningModelDevice>());
+        }
+#endif
         else
         {
             LearningModelDevice learningModelDevice(TypeHelper::GetWinmlDeviceKind(deviceType));
@@ -557,6 +687,10 @@ int run(CommandLineArgs& args, Profiler<WINML_MODEL_TEST_PERF>& profiler)
         output.SetDefaultPerIterationFolder(args.TensorOutputPath());
         output.SetDefaultCSVFileNamePerIteration();
     }
+
+#if MCDM_BUILD
+    D3D12EnableExperimentalFeatures(1, &D3D12ComputeOnlyDevices, nullptr, 0);
+#endif
 
     if (!args.ModelPath().empty() || !args.FolderPath().empty())
     {
