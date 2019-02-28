@@ -25,6 +25,8 @@
 #include "TimerHelper.h"
 #include "DirectXPackedVector.h"
 
+#define MCDM_BUILD 1
+
 enum WINML_MODEL_TEST_PERF
 {
 	ENTIRE_TEST = 0,
@@ -82,3 +84,14 @@ inline void ThrowFailure(const std::wstring &errorMsg)
 {
 	throw errorMsg;
 }
+
+#if MCDM_BUILD
+//
+// Delay load exception information
+//
+#ifndef FACILITY_VISUALCPP
+#define FACILITY_VISUALCPP  ((LONG)0x6d)
+#endif
+
+#define VcppException(sev,err)  ((sev) | (FACILITY_VISUALCPP<<16) | err)
+#endif
