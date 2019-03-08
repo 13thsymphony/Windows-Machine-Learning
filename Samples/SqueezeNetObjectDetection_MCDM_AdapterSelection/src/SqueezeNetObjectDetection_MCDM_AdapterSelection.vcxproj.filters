@@ -22,9 +22,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <CopyFileToFolders Include="Labels.txt">
-      <Filter>Content</Filter>
-    </CopyFileToFolders>
     <CopyFileToFolders Include="..\..\..\SharedContent\media\fish.png">
       <Filter>Content</Filter>
     </CopyFileToFolders>
@@ -32,6 +29,9 @@
       <Filter>Content</Filter>
     </CopyFileToFolders>
     <CopyFileToFolders Include="..\..\..\SharedContent\models\SqueezeNet.onnx">
+      <Filter>Content</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\..\SqueezeNetObjectDetection\Desktop\cpp\Labels.txt">
       <Filter>Content</Filter>
     </CopyFileToFolders>
   </ItemGroup>
