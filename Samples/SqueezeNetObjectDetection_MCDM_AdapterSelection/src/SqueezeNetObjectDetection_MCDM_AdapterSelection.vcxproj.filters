@@ -22,16 +22,16 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <CopyFileToFolders Include="fish_224.png">
-      <Filter>Content</Filter>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="kitten_224.png">
-      <Filter>Content</Filter>
-    </CopyFileToFolders>
     <CopyFileToFolders Include="Labels.txt">
       <Filter>Content</Filter>
     </CopyFileToFolders>
-    <CopyFileToFolders Include="SqueezeNet.onnx">
+    <CopyFileToFolders Include="..\..\..\SharedContent\media\fish.png">
+      <Filter>Content</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\..\..\SharedContent\media\kitten_224.png">
+      <Filter>Content</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\..\..\SharedContent\models\SqueezeNet.onnx">
       <Filter>Content</Filter>
     </CopyFileToFolders>
   </ItemGroup>
