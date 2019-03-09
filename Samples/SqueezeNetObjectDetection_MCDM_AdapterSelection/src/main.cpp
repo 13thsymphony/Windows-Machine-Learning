@@ -1,0 +1,332 @@
+#include "pch.h"
+
+using namespace winrt;
+using namespace Windows::Foundation::Collections;
+using namespace Windows::AI::MachineLearning;
+using namespace Windows::Media;
+using namespace Windows::Graphics::Imaging;
+using namespace Windows::Storage;
+using namespace std;
+
+#define THROW_IF_FAILED(hr)                                                                                            \
+    {                                                                                                                  \
+        if (FAILED(hr))                                                                                                \
+            throw hresult_error(hr);                                                                                   \
+    }
+
+// globals
+vector<string> labels;
+string labelsFileName("labels.txt");
+hstring modelPath;
+hstring imagePath;
+
+// helper functions
+string GetModulePath();
+void LoadLabels();
+VideoFrame LoadImageFile(hstring filePath);
+void PrintResults(IVectorView<float> results);
+bool ParseArgs(int argc, char* argv[]);
+LearningModelDevice GetLearningModelDeviceFromAdapter(IDXCoreAdapter* spAdapter);
+
+int main(int argc, char* argv[]) try
+{
+    init_apartment();
+    HMODULE dxCoreDll{ nullptr };
+    dxCoreDll = LoadLibrary(L"dxcore.dll");
+    if (!dxCoreDll)
+    {
+        printf("DxCore isn't supported on this version of Windows - Exiting...");
+        throw HRESULT_FROM_WIN32(GetLastError());
+    }
+
+    if (ParseArgs(argc, argv) == false)
+    {
+        printf("Usage: %s [modelfile] [imagefile]", argv[0]);
+        return -1;
+    }
+    // display all adapters
+    auto dxcoreCreateAdapterFactory = reinterpret_cast<decltype(&DXCoreCreateAdapterFactory)>(
+        GetProcAddress(dxCoreDll, "DXCoreCreateAdapterFactory"));
+    if (!dxcoreCreateAdapterFactory)
+    {
+        printf("Couldn't get the function: DXCoreCreateAdapterFactory! Exiting...");
+        return HRESULT_FROM_WIN32(GetLastError());
+    }
+
+    // This IID is private and will break in 19H2.
+    // Eventually replace with: com_ptr<IDXCoreAdapterFactory> spFactory;
+    MIDL_INTERFACE("e4212a94-d660-480e-82b3-006e050a44c0")
+        IDXCoreAdapterFactory_Internal : public IDXCoreAdapterFactory {};
+    com_ptr<IDXCoreAdapterFactory_Internal> spFactory;
+    THROW_IF_FAILED(dxcoreCreateAdapterFactory(IID_PPV_ARGS(spFactory.put())));
+
+    com_ptr<IDXCoreAdapterList> spAdapterList;
+    const GUID dxGUIDs[] = { DXCORE_ADAPTER_ATTRIBUTE_D3D12_CORE_COMPUTE };
+
+    THROW_IF_FAILED(spFactory->GetAdapterList(dxGUIDs, ARRAYSIZE(dxGUIDs), spAdapterList.put()));
+
+    CHAR driverDescription[128];
+    std::map<int, com_ptr<IDXCoreAdapter>> validAdapters;
+    for (UINT i = 0; i < spAdapterList->GetAdapterCount(); i++)
+    {
+        com_ptr<IDXCoreAdapter> spAdapter;
+        THROW_IF_FAILED(spAdapterList->GetItem(i, spAdapter.put()));
+        // If the adapter is a software adapter then don't consider it
+        bool isHardware;
+        DXCoreHardwareID dxCoreHardwareID;
+        THROW_IF_FAILED(spAdapter->QueryProperty(DXCoreProperty::IsHardware, sizeof(isHardware), &isHardware));
+        THROW_IF_FAILED(spAdapter->GetHardwareID(&dxCoreHardwareID));
+        if (isHardware && (dxCoreHardwareID.vendorId != 0x1414 || dxCoreHardwareID.deviceId != 0x8c))
+        {
+            THROW_IF_FAILED(spAdapter->QueryProperty(DXCoreProperty::DriverDescription, sizeof(driverDescription), driverDescription));
+            printf("Index: %d, Description: %s\n", i, driverDescription);
+            validAdapters[i] = (spAdapter);
+        }
+    }
+
+    LearningModelDevice device = nullptr;
+    if (validAdapters.size() == 0)
+    {
+        printf("There are no available adapters, running on CPU...\n");
+        device = LearningModelDevice(LearningModelDeviceKind::Cpu);
+    }
+    else
+    {
+        // user selects adapter
+        printf("Please enter the index of the adapter you want to use...\n");
+        int selectedIndex;
+        while (!(cin >> selectedIndex) || validAdapters.find(selectedIndex) == validAdapters.end())
+        {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            printf("Invalid index, please try again.\n");
+        }
+        com_ptr<IDXCoreAdapter> selectedAdapter;
+        THROW_IF_FAILED(spAdapterList->GetItem(selectedIndex, selectedAdapter.put()));
+        THROW_IF_FAILED(selectedAdapter->QueryProperty(DXCoreProperty::DriverDescription, sizeof(driverDescription), driverDescription));
+        printf("Selected adapter at index %d, description: %s\n", selectedIndex, driverDescription);
+        try
+        {
+            device = GetLearningModelDeviceFromAdapter(validAdapters[selectedIndex].get());
+        }
+        catch (const hresult_error& hr)
+        {
+            wprintf(hr.message().c_str());
+            printf("Couldn't create Learning Model Device from selected Adapter!!\n");
+            throw;
+        }
+        printf("Successfully created LearningModelDevice with selected Adapter\n");
+    }
+
+    // load the model
+    printf("Loading modelfile '%ws' on the selected device\n", modelPath.c_str());
+    DWORD ticks = GetTickCount();
+    auto model = LearningModel::LoadFromFilePath(modelPath);
+    ticks = GetTickCount() - ticks;
+    printf("model file loaded in %d ticks\n", ticks);
+
+    // now create a session and binding
+    LearningModelSession session(model, device);
+    LearningModelBinding binding(session);
+
+    // load the image
+    printf("Loading the image...\n");
+    auto imageFrame = LoadImageFile(imagePath);
+
+    // bind the input image
+    printf("Binding...\n");
+    binding.Bind(model.InputFeatures().GetAt(0).Name(), ImageFeatureValue::CreateFromVideoFrame(imageFrame));
+    // temp: bind the output (we don't support unbound outputs yet)
+    vector<int64_t> shape({ 1, 1000, 1, 1 });
+    hstring outputName = model.OutputFeatures().GetAt(0).Name();
+    binding.Bind(outputName, TensorFloat::Create(shape));
+
+    // now run the model
+    printf("Running the model...\n");
+    ticks = GetTickCount();
+    auto results = session.Evaluate(binding, L"RunId");
+    ticks = GetTickCount() - ticks;
+    printf("model run took %d ticks\n", ticks);
+
+    // get the output
+    auto resultTensor = results.Outputs().Lookup(outputName).as<TensorFloat>();
+    auto resultVector = resultTensor.GetAsVectorView();
+    PrintResults(resultVector);
+    if (!FreeLibrary(dxCoreDll))
+    {
+        printf("WARNING: Failed to free Dxcore.dll");
+        throw HRESULT_FROM_WIN32(GetLastError());
+    };
+    return EXIT_SUCCESS;
+}
+catch (const hresult_error& error)
+{
+    wprintf(error.message().c_str());
+    return error.code();
+}
+catch (const std::exception& error)
+{
+    printf(error.what());
+    return EXIT_FAILURE;
+}
+catch (...)
+{
+    printf("Unknown exception occurred.");
+    return EXIT_FAILURE;
+}
+
+LearningModelDevice GetLearningModelDeviceFromAdapter(IDXCoreAdapter* spAdapter)
+{
+
+    IUnknown* pAdapter = spAdapter;
+    com_ptr<IDXGIAdapter> spDxgiAdapter;
+    D3D_FEATURE_LEVEL d3dFeatureLevel = D3D_FEATURE_LEVEL_1_0_CORE;
+    D3D12_COMMAND_LIST_TYPE commandQueueType = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+
+    // Check if adapter selected has DXCORE_ADAPTER_ATTRIBUTE_D3D12_GRFX attribute selected. If so,
+    // then GPU was selected that has D3D12 and D3D11 capabilities. It would be the most stable to
+    // use DXGI to enumerate GPU and use D3D_FEATURE_LEVEL_11_0 so that image tensorization for
+    // video frames would be able to happen on the GPU.
+    if (spAdapter->IsDXAttributeSupported(DXCORE_ADAPTER_ATTRIBUTE_D3D12_GRFX))
+    {
+        d3dFeatureLevel = D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_11_0;
+        com_ptr<IDXGIFactory4> dxgiFactory4;
+        THROW_IF_FAILED(CreateDXGIFactory2(0, __uuidof(IDXGIFactory4), dxgiFactory4.put_void()));
+
+        // If DXGI factory creation was successful then get the IDXGIAdapter from the LUID acquired from the spAdapter
+        LUID adapterLuid;
+        THROW_IF_FAILED(spAdapter->GetLUID(&adapterLuid));
+        THROW_IF_FAILED(dxgiFactory4->EnumAdapterByLuid(adapterLuid, __uuidof(IDXGIAdapter), spDxgiAdapter.put_void()));
+        pAdapter = spDxgiAdapter.get();
+    }
+    else
+    {
+        // Need to enable experimental features to create D3D12 Device with adapter that has compute only capabilities.
+        THROW_IF_FAILED(D3D12EnableExperimentalFeatures(1, &D3D12ComputeOnlyDevices, nullptr, 0));
+    }
+
+    // create D3D12Device
+    com_ptr<ID3D12Device> d3d12Device;
+    THROW_IF_FAILED(D3D12CreateDevice(pAdapter, d3dFeatureLevel, __uuidof(ID3D12Device), d3d12Device.put_void()));
+
+    // create D3D12 command queue from device
+    com_ptr<ID3D12CommandQueue> d3d12CommandQueue;
+    D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
+    commandQueueDesc.Type = commandQueueType;
+    THROW_IF_FAILED(d3d12Device->CreateCommandQueue(&commandQueueDesc, __uuidof(ID3D12CommandQueue), d3d12CommandQueue.put_void()));
+
+    // create LearningModelDevice from command queue
+    auto factory = get_activation_factory<LearningModelDevice, ILearningModelDeviceFactoryNative>();
+    com_ptr<::IUnknown> spUnkLearningModelDevice;
+    THROW_IF_FAILED(factory->CreateFromD3D12CommandQueue(d3d12CommandQueue.get(), spUnkLearningModelDevice.put()));
+    return spUnkLearningModelDevice.as<LearningModelDevice>();
+}
+
+bool ParseArgs(int argc, char* argv[])
+{
+    if (argc < 3)
+    {
+        return false;
+    }
+    // get the model file
+    modelPath = hstring(wstring_to_utf8().from_bytes(argv[1]));
+    // get the image file
+    imagePath = hstring(wstring_to_utf8().from_bytes(argv[2]));
+    // did they pass a fourth arg?
+
+    return true;
+}
+
+string GetModulePath()
+{
+    string val;
+    char modulePath[MAX_PATH] = {};
+    GetModuleFileNameA(NULL, modulePath, ARRAYSIZE(modulePath));
+    char drive[_MAX_DRIVE];
+    char dir[_MAX_DIR];
+    char filename[_MAX_FNAME];
+    char ext[_MAX_EXT];
+    _splitpath_s(modulePath, drive, _MAX_DRIVE, dir, _MAX_DIR, filename, _MAX_FNAME, ext, _MAX_EXT);
+
+    val = drive;
+    val += dir;
+    return val;
+}
+
+void LoadLabels()
+{
+    // Parse labels from labels file.  We know the file's entries are already sorted in order.
+    std::string labelsFilePath = GetModulePath() + labelsFileName;
+    ifstream labelFile(labelsFilePath, ifstream::in);
+    if (labelFile.fail())
+    {
+        printf("failed to load the %s file.  Make sure it exists in the same folder as the app\r\n",
+               labelsFileName.c_str());
+        throw hresult_invalid_argument();
+    }
+
+    std::string s;
+    while (std::getline(labelFile, s, ','))
+    {
+        int labelValue = atoi(s.c_str());
+        if (labelValue >= static_cast<int>(labels.size()))
+        {
+            labels.resize(labelValue + 1);
+        }
+        std::getline(labelFile, s);
+        labels[labelValue] = s;
+    }
+}
+
+VideoFrame LoadImageFile(hstring filePath)
+{
+    try
+    {
+        // open the file
+        StorageFile file = StorageFile::GetFileFromPathAsync(filePath).get();
+        // get a stream on it
+        auto stream = file.OpenAsync(FileAccessMode::Read).get();
+        // Create the decoder from the stream
+        BitmapDecoder decoder = BitmapDecoder::CreateAsync(stream).get();
+        // get the bitmap
+        SoftwareBitmap softwareBitmap = decoder.GetSoftwareBitmapAsync().get();
+        // load a videoframe from it
+        VideoFrame inputImage = VideoFrame::CreateWithSoftwareBitmap(softwareBitmap);
+        // all done
+        return inputImage;
+    }
+    catch (...)
+    {
+        printf("failed to load the image file, make sure you are using fully qualified paths\r\n");
+        throw;
+    }
+}
+
+void PrintResults(IVectorView<float> results)
+{
+    // load the labels
+    LoadLabels();
+
+    vector<pair<float, uint32_t>> sortedResults;
+    for (uint32_t i = 0; i < results.Size(); i++)
+    {
+        pair<float, uint32_t> curr;
+        curr.first = results.GetAt(i);
+        curr.second = i;
+        sortedResults.push_back(curr);
+    }
+    std::sort(sortedResults.begin(), sortedResults.end(),
+              [](pair<float, uint32_t> const& a, pair<float, uint32_t> const& b) { return a.first > b.first; });
+
+    // Display the result
+    for (int i = 0; i < 3; i++)
+    {
+        pair<float, uint32_t> curr = sortedResults.at(i);
+        printf("%s with confidence of %f\n", labels[curr.second].c_str(), curr.first);
+    }
+}
+
+int32_t WINRT_CALL WINRT_CoIncrementMTAUsage(void** cookie) noexcept
+{
+    return CoIncrementMTAUsage(reinterpret_cast<CO_MTA_USAGE_COOKIE*>(cookie));
+}
