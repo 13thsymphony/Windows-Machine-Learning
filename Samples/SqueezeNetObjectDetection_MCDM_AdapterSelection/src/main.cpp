@@ -34,6 +34,8 @@ int main(int argc, char* argv[]) try
     init_apartment();
     HMODULE dxCoreDll{ nullptr };
     dxCoreDll = LoadLibrary(L"dxcore.dll");
+    // LoadLibrary is used to keep the app from crashing on unsupported OS.
+    // This check is temporary until Vibranium comes and DXCore will guaranteed part of the OS
     if (!dxCoreDll)
     {
         printf("DxCore isn't supported on this version of Windows - Exiting...");
@@ -81,6 +83,8 @@ int main(int argc, char* argv[]) try
         {
             if (dxCoreHardwareID.vendorId == 0x8086 && dxCoreHardwareID.deviceId == 0x6200) // VPU Adapter
             {
+                // For the developer preview, DXCore requires you to specifically choose the desired adapter;
+                // In this case, the vendor and device IDs are for the Intel MyriadX VPU
                 vpuAdapter = spAdapter.get();
             }
             THROW_IF_FAILED(spAdapter->QueryProperty(DXCoreProperty::DriverDescription, sizeof(driverDescription), driverDescription));
@@ -158,10 +162,6 @@ int main(int argc, char* argv[]) try
     // bind the input image
     printf("Binding...\n");
     binding.Bind(model.InputFeatures().GetAt(0).Name(), ImageFeatureValue::CreateFromVideoFrame(imageFrame));
-    // temp: bind the output (we don't support unbound outputs yet)
-    vector<int64_t> shape({ 1, 1000, 1, 1 });
-    hstring outputName = model.OutputFeatures().GetAt(0).Name();
-    binding.Bind(outputName, TensorFloat16Bit::Create(shape));
 
     // now run the model
     printf("Running the model...\n");
@@ -171,7 +171,7 @@ int main(int argc, char* argv[]) try
     printf("model run took %d ticks\n", ticks);
 
     // get the output
-    auto resultTensor = results.Outputs().Lookup(outputName).as<TensorFloat16Bit>();
+    auto resultTensor = results.Outputs().Lookup(model.OutputFeatures().GetAt(0).Name()).as<TensorFloat16Bit>();
     auto resultVector = resultTensor.GetAsVectorView();
     PrintResults(resultVector);
     if (!FreeLibrary(dxCoreDll))

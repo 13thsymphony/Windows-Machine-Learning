@@ -1,21 +1,15 @@
 * # Adapter Selection sample
 
-This is a desktop application that demonstrates how to enumerate and select device adapters to run onnx models on using Windows Machine Learning using DxCore. This sample is set up to run a SqueezeNet image detection model on the selected device.
+This is a desktop application that demonstrates using DXCore as the replacement for DXGI. This sample is set up to use new compute-only adapters, such as the Intel MyriadX VPU (Vision Processing Unit), and run a SqueezeNet image detection model using the selected device.
+
+**About prerelease APIs:** Support for compute-only adapters and the DXCore API are in developer preview for 19H1 and 19H2. Functionality, performance and reliability are all incomplete and the API surface may change.
 
 Note: SqueezeNet was trained to work with image sizes of 224x224, so you must provide an image of size 224X224.
 
 ## Prerequisites
 
 - [Visual Studio 2019 Release Candidate](https://devblogs.microsoft.com/visualstudio/visual-studio-2019-release-candidate-rc-now-available/)
-- Windows MCDM VHD 18342 \\\grfxshare\Sigma-GRFX\MCDM\18342-sample-development\mcdm-18342.vhd
-- Windows SDK - Build 18342 \\\grfxshare\Sigma-GRFX\MCDM\18342-sample-development\windowssdk
-- Visual Studio Extension for C++/WinRT
-
-  Do the following to add the C++/WinRT extension in Visual Studio.
-  1. Go to **Tools > Extensions and Updates**. 
-  2. Select **Online** in the left pane and search for "WinRT" using the search box.
-  3. Select the **C++/WinRT** extension, click **Download**, and close Visual Studio. The extension should install automatically.
-  4. When the extension has finished installing, re-open Visual Studio.
+- TBD OS and SDK requirements.
 
 ## Build the sample
 
@@ -39,7 +33,6 @@ options:
   -Image <full path to image>: Image Path
   -SelectAdapter : Toggle select adapter functionality to select the device to run sample on.
 ```
-
 
 1. Open a Command Prompt (in the Windows 10 search bar, type **cmd** and press **Enter**).
 2. Change the current folder to the folder containing the built EXE (`cd <path-to-exe>`).
