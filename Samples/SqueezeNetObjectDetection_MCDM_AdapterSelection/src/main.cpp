@@ -109,7 +109,6 @@ int main(int argc, char* argv[]) try
                 cin.ignore(numeric_limits<streamsize>::max(), '\n');
                 printf("Invalid index, please try again.\n");
             }
-            CHAR driverDescription[128];
             com_ptr<IDXCoreAdapter> selectedAdapter;
             THROW_IF_FAILED(spAdapterList->GetItem(selectedIndex, selectedAdapter.put()));
             THROW_IF_FAILED(selectedAdapter->QueryProperty(DXCoreProperty::DriverDescription, sizeof(driverDescription), driverDescription));
@@ -268,7 +267,7 @@ bool ParseArgs(int argc, char* argv[])
             std::cout << "options: " << std::endl;
             std::cout << "  -Model <full path to model>: Model Path (Only FP16 models)" << std::endl;
             std::cout << "  -Image <full path to image>: Image Path" << std::endl;
-            std::cout << "  -SelectAdapter : Toggle select adapter functionality" << std::endl;
+            std::cout << "  -SelectAdapter : Toggle select adapter functionality to select the device to run sample on." << std::endl;
             return false;
         }
     }
