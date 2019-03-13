@@ -1,4 +1,4 @@
-# Adapter Selection sample
+* # Adapter Selection sample
 
 This is a desktop application that demonstrates how to enumerate and select device adapters to run onnx models on using Windows Machine Learning using DxCore. This sample is set up to run a SqueezeNet image detection model on the selected device.
 
@@ -31,26 +31,29 @@ dxcore.lib |	C:\Program Files (x86)\Windows Kits\10\Lib\10.0.18342.0\um\x64
 
 
 ## Run the sample
+Usage:
+```
+SqueezeNetObjectDetection_MCDM_AdapterSelection.exe [options]
+options:
+  -Model <full path to model>: Model Path (Only FP16 models)
+  -Image <full path to image>: Image Path
+  -SelectAdapter : Toggle select adapter functionality to select the device to run sample on.
+```
+
 
 1. Open a Command Prompt (in the Windows 10 search bar, type **cmd** and press **Enter**).
 2. Change the current folder to the folder containing the built EXE (`cd <path-to-exe>`).
 3. Run the executable as shown below. Make sure to replace the install location with what matches yours:
   ```
-  AdapterSelection.exe C:\Repos\Windows-Machine-Learning\SharedContent\models\SqueezeNet.onnx C:\Repos\Windows-Machine-Learning\SharedContent\media\kitten_224.png
+  SqueezeNetObjectDetection_MCDM_AdapterSelection.exe
   ```
-4. You should get output similar to the following:
+You should get output similar to the following:
   ```
   Index: 0, Description: Intel(R) Iris(R) Plus Graphics 650
   Index: 2, Description: Intel(R) VPU Aceelerator 2485
-  Please enter the index of the adapter you want to use...
-  ```
-  Then type the index to select and press enter. Then you should get output similar to the following:
-  ```
-  2
-Selected adapter at index 2, description: Intel(R) VPU Accelerator 2485
 Movidius Compiler (moviCompile) v00.95.0 Build 3157 Alpha #1. Restricted distribution.
 Successfully created LearningModelDevice with selected Adapter
-Loading modelfile '.\SqueezeNet.onnx' on the selected device
+Loading modelfile '.\SqueezeNet_fp16.onnx' on the selected device
 model file loaded in 16 ticks
 Movidius Compiler (moviCompile) v00.95.0 Build 3157 Alpha #1. Restricted distribution.
 Movidius Compiler (moviCompile) v00.95.0 Build 3157 Alpha #1. Restricted distribution.
@@ -62,7 +65,7 @@ Movidius Compiler (moviCompile) v00.95.0 Build 3157 Alpha #1. Restricted distrib
 Movidius Compiler (moviCompile) v00.95.0 Build 3157 Alpha #1. Restricted distribution.
 Movidius Compiler (moviCompile) v00.95.0 Build 3157 Alpha #1. Restricted distribution.
 Movidius Compiler (moviCompile) v00.95.0 Build 3157 Alpha #1. Restricted distribution.
-Loading the image...
+Loading the image '.\kitten_224.png' ...
 Binding...
 Running the model...
 model run took 562 ticks
