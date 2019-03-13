@@ -28,11 +28,13 @@
     <CopyFileToFolders Include="..\..\..\SharedContent\media\kitten_224.png">
       <Filter>Content</Filter>
     </CopyFileToFolders>
-    <CopyFileToFolders Include="..\..\..\SharedContent\models\SqueezeNet.onnx">
-      <Filter>Content</Filter>
-    </CopyFileToFolders>
     <CopyFileToFolders Include="..\..\SqueezeNetObjectDetection\Desktop\cpp\Labels.txt">
       <Filter>Content</Filter>
     </CopyFileToFolders>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\SharedContent\models\SqueezeNet_fp16.onnx">
+      <Filter>Content</Filter>
+    </None>
   </ItemGroup>
 </Project>

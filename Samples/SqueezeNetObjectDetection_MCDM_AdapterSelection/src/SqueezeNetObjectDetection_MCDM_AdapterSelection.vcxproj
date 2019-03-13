@@ -173,16 +173,14 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <CopyFileToFolders Include="..\..\..\SharedContent\models\SqueezeNet.onnx">
-      <FileType>Document</FileType>
-    </CopyFileToFolders>
-  </ItemGroup>
-  <ItemGroup>
     <CopyFileToFolders Include="..\..\..\SharedContent\media\fish.png" />
     <CopyFileToFolders Include="..\..\..\SharedContent\media\kitten_224.png" />
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\..\SqueezeNetObjectDetection\Desktop\cpp\Labels.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\SharedContent\models\SqueezeNet_fp16.onnx" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
