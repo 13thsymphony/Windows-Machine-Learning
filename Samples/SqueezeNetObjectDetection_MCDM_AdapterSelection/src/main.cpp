@@ -25,6 +25,8 @@ LearningModelDevice GetLearningModelDeviceFromAdapter(IDXCoreAdapter* spAdapter)
 // globals
 vector<string> labels;
 string labelsFileName("labels.txt");
+// Many compute-only adapters, including the MyriadX, are optimized for lower precision ML models.
+// In this case, we default to an FP16 version of SqueezeNet
 hstring modelPath = to_hstring(GetModulePath() + "SqueezeNet_fp16.onnx");
 hstring imagePath = to_hstring(GetModulePath() + "kitten_224.png");
 bool selectAdapter = false;
@@ -81,7 +83,7 @@ int main(int argc, char* argv[]) try
         THROW_IF_FAILED(spAdapter->GetHardwareID(&dxCoreHardwareID));
         if (isHardware && (dxCoreHardwareID.vendorId != 0x1414 || dxCoreHardwareID.deviceId != 0x8c))
         {
-            if (dxCoreHardwareID.vendorId == 0x8086 && dxCoreHardwareID.deviceId == 0x6200) // VPU Adapter
+            if (dxCoreHardwareID.vendorId == 0x8086 && dxCoreHardwareID.deviceId == 0x6200) // VPU adapter
             {
                 // For the developer preview, DXCore requires you to specifically choose the desired adapter;
                 // In this case, the vendor and device IDs are for the Intel MyriadX VPU
@@ -121,14 +123,14 @@ int main(int argc, char* argv[]) try
         }
         else
         {
-            //VPU Adapter automatically chosen
+            // VPU adapter automatically chosen
             if (vpuAdapter != nullptr)
             {
                 chosenAdapter = vpuAdapter;
             }
             else
             {
-                throw hresult_invalid_argument(L"Default behavior uses VPU Adapter, but not found!");
+                throw hresult_invalid_argument(L"Default behavior uses VPU adapter, but not found!");
             }
         }
         try
@@ -138,10 +140,10 @@ int main(int argc, char* argv[]) try
         catch (const hresult_error& hr)
         {
             wprintf(hr.message().c_str());
-            printf("Couldn't create Learning Model Device from selected Adapter!!\n");
+            printf("Couldn't create Learning Model Device from selected adapter!!\n");
             throw;
         }
-        printf("Successfully created LearningModelDevice with selected Adapter\n");
+        printf("Successfully created LearningModelDevice with selected adapter\n");
     }
 
     // load the model
