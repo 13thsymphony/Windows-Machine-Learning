@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) try
 
     CHAR driverDescription[128];
     std::map<int, com_ptr<IDXCoreAdapter>> validAdapters;
-    IDXCoreAdapter* vpuAdapter = NULL;
+    IDXCoreAdapter* vpuAdapter = nullptr;
     for (UINT i = 0; i < spAdapterList->GetAdapterCount(); i++)
     {
         com_ptr<IDXCoreAdapter> spAdapter;
@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) try
     }
     else
     {
-        IDXCoreAdapter* chosenAdapter = NULL;
+        IDXCoreAdapter* chosenAdapter = nullptr;
         if (selectAdapter)
         {
             // user selects adapter
@@ -122,7 +122,7 @@ int main(int argc, char* argv[]) try
         else
         {
             //VPU Adapter automatically chosen
-            if (vpuAdapter != NULL)
+            if (vpuAdapter != nullptr)
             {
                 chosenAdapter = vpuAdapter;
             }
