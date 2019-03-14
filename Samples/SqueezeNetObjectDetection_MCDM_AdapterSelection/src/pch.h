@@ -24,7 +24,6 @@
 #include <dxgi.h>
 #include <initguid.h>
 #include <dxcore.h>
-#include <dxcore_interface.h>
 #include <dxgi1_6.h>
 #include <string>
 #include <codecvt>

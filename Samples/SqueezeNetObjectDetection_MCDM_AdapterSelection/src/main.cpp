@@ -34,35 +34,16 @@ bool selectAdapter = false;
 int main(int argc, char* argv[]) try
 {
     init_apartment();
-    HMODULE dxCoreDll{ nullptr };
-    dxCoreDll = LoadLibrary(L"dxcore.dll");
-    // LoadLibrary is used to keep the app from crashing on unsupported OS.
-    // This check is temporary until Vibranium comes and DXCore will guaranteed part of the OS
-    if (!dxCoreDll)
-    {
-        printf("DxCore isn't supported on this version of Windows - Exiting...");
-        throw HRESULT_FROM_WIN32(GetLastError());
-    }
-
     if (ParseArgs(argc, argv) == false)
     {
         return -1;
     }
-    // display all adapters
-    auto dxcoreCreateAdapterFactory = reinterpret_cast<decltype(&DXCoreCreateAdapterFactory)>(
-        GetProcAddress(dxCoreDll, "DXCoreCreateAdapterFactory"));
-    if (!dxcoreCreateAdapterFactory)
-    {
-        printf("Couldn't get the function: DXCoreCreateAdapterFactory! Exiting...");
-        return HRESULT_FROM_WIN32(GetLastError());
-    }
-
     // This IID is private and will break in 19H2.
     // Eventually replace with: com_ptr<IDXCoreAdapterFactory> spFactory;
     MIDL_INTERFACE("e4212a94-d660-480e-82b3-006e050a44c0")
         IDXCoreAdapterFactory_Internal : public IDXCoreAdapterFactory {};
     com_ptr<IDXCoreAdapterFactory_Internal> spFactory;
-    THROW_IF_FAILED(dxcoreCreateAdapterFactory(IID_PPV_ARGS(spFactory.put())));
+    THROW_IF_FAILED(DXCoreCreateAdapterFactory(IID_PPV_ARGS(spFactory.put())));
 
     com_ptr<IDXCoreAdapterList> spAdapterList;
     const GUID dxGUIDs[] = { DXCORE_ADAPTER_ATTRIBUTE_D3D12_CORE_COMPUTE };
@@ -176,11 +157,6 @@ int main(int argc, char* argv[]) try
     auto resultTensor = results.Outputs().Lookup(model.OutputFeatures().GetAt(0).Name()).as<TensorFloat16Bit>();
     auto resultVector = resultTensor.GetAsVectorView();
     PrintResults(resultVector);
-    if (!FreeLibrary(dxCoreDll))
-    {
-        printf("WARNING: Failed to free Dxcore.dll");
-        throw HRESULT_FROM_WIN32(GetLastError());
-    };
     return EXIT_SUCCESS;
 }
 catch (const hresult_error& error)
