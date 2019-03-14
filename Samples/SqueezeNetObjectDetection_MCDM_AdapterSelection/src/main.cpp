@@ -14,12 +14,6 @@ using namespace std;
             throw hresult_error(hr);                                                                                   \
     }
 
-// globals
-vector<string> labels;
-string labelsFileName("labels.txt");
-hstring modelPath;
-hstring imagePath;
-
 // helper functions
 string GetModulePath();
 void LoadLabels();
@@ -28,11 +22,22 @@ void PrintResults(IVectorView<float> results);
 bool ParseArgs(int argc, char* argv[]);
 LearningModelDevice GetLearningModelDeviceFromAdapter(IDXCoreAdapter* spAdapter);
 
+// globals
+vector<string> labels;
+string labelsFileName("labels.txt");
+// Many compute-only adapters, including the MyriadX, are optimized for lower precision ML models.
+// In this case, we default to an FP16 version of SqueezeNet
+hstring modelPath = to_hstring(GetModulePath() + "SqueezeNet_fp16.onnx");
+hstring imagePath = to_hstring(GetModulePath() + "kitten_224.png");
+bool selectAdapter = false;
+
 int main(int argc, char* argv[]) try
 {
     init_apartment();
     HMODULE dxCoreDll{ nullptr };
     dxCoreDll = LoadLibrary(L"dxcore.dll");
+    // LoadLibrary is used to keep the app from crashing on unsupported OS.
+    // This check is temporary until Vibranium comes and DXCore will guaranteed part of the OS
     if (!dxCoreDll)
     {
         printf("DxCore isn't supported on this version of Windows - Exiting...");
@@ -41,7 +46,6 @@ int main(int argc, char* argv[]) try
 
     if (ParseArgs(argc, argv) == false)
     {
-        printf("Usage: %s [modelfile] [imagefile]", argv[0]);
         return -1;
     }
     // display all adapters
@@ -67,6 +71,7 @@ int main(int argc, char* argv[]) try
 
     CHAR driverDescription[128];
     std::map<int, com_ptr<IDXCoreAdapter>> validAdapters;
+    IDXCoreAdapter* vpuAdapter = nullptr;
     for (UINT i = 0; i < spAdapterList->GetAdapterCount(); i++)
     {
         com_ptr<IDXCoreAdapter> spAdapter;
@@ -78,9 +83,15 @@ int main(int argc, char* argv[]) try
         THROW_IF_FAILED(spAdapter->GetHardwareID(&dxCoreHardwareID));
         if (isHardware && (dxCoreHardwareID.vendorId != 0x1414 || dxCoreHardwareID.deviceId != 0x8c))
         {
+            if (dxCoreHardwareID.vendorId == 0x8086 && dxCoreHardwareID.deviceId == 0x6200) // VPU adapter
+            {
+                // For the developer preview, DXCore requires you to specifically choose the desired adapter;
+                // In this case, the vendor and device IDs are for the Intel MyriadX VPU
+                vpuAdapter = spAdapter.get();
+            }
             THROW_IF_FAILED(spAdapter->QueryProperty(DXCoreProperty::DriverDescription, sizeof(driverDescription), driverDescription));
             printf("Index: %d, Description: %s\n", i, driverDescription);
-            validAdapters[i] = (spAdapter);
+            validAdapters[i] = spAdapter;
         }
     }
 
@@ -92,30 +103,47 @@ int main(int argc, char* argv[]) try
     }
     else
     {
-        // user selects adapter
-        printf("Please enter the index of the adapter you want to use...\n");
-        int selectedIndex;
-        while (!(cin >> selectedIndex) || validAdapters.find(selectedIndex) == validAdapters.end())
+        IDXCoreAdapter* chosenAdapter = nullptr;
+        if (selectAdapter)
         {
-            cin.clear();
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
-            printf("Invalid index, please try again.\n");
+            // user selects adapter
+            printf("Please enter the index of the adapter you want to use...\n");
+            int selectedIndex;
+            while (!(cin >> selectedIndex) || validAdapters.find(selectedIndex) == validAdapters.end())
+            {
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                printf("Invalid index, please try again.\n");
+            }
+            com_ptr<IDXCoreAdapter> selectedAdapter;
+            THROW_IF_FAILED(spAdapterList->GetItem(selectedIndex, selectedAdapter.put()));
+            THROW_IF_FAILED(selectedAdapter->QueryProperty(DXCoreProperty::DriverDescription, sizeof(driverDescription), driverDescription));
+            printf("Selected adapter at index %d, description: %s\n", selectedIndex, driverDescription);
+            chosenAdapter = validAdapters[selectedIndex].get();
         }
-        com_ptr<IDXCoreAdapter> selectedAdapter;
-        THROW_IF_FAILED(spAdapterList->GetItem(selectedIndex, selectedAdapter.put()));
-        THROW_IF_FAILED(selectedAdapter->QueryProperty(DXCoreProperty::DriverDescription, sizeof(driverDescription), driverDescription));
-        printf("Selected adapter at index %d, description: %s\n", selectedIndex, driverDescription);
+        else
+        {
+            // VPU adapter automatically chosen
+            if (vpuAdapter != nullptr)
+            {
+                chosenAdapter = vpuAdapter;
+            }
+            else
+            {
+                throw hresult_invalid_argument(L"Default behavior uses VPU adapter, but not found!");
+            }
+        }
         try
         {
-            device = GetLearningModelDeviceFromAdapter(validAdapters[selectedIndex].get());
+            device = GetLearningModelDeviceFromAdapter(chosenAdapter);
         }
         catch (const hresult_error& hr)
         {
             wprintf(hr.message().c_str());
-            printf("Couldn't create Learning Model Device from selected Adapter!!\n");
+            printf("Couldn't create Learning Model Device from selected adapter!!\n");
             throw;
         }
-        printf("Successfully created LearningModelDevice with selected Adapter\n");
+        printf("Successfully created LearningModelDevice with selected adapter\n");
     }
 
     // load the model
@@ -130,16 +158,12 @@ int main(int argc, char* argv[]) try
     LearningModelBinding binding(session);
 
     // load the image
-    printf("Loading the image...\n");
+    printf("Loading the image: '%ws' ...\n", imagePath.c_str());
     auto imageFrame = LoadImageFile(imagePath);
 
     // bind the input image
     printf("Binding...\n");
     binding.Bind(model.InputFeatures().GetAt(0).Name(), ImageFeatureValue::CreateFromVideoFrame(imageFrame));
-    // temp: bind the output (we don't support unbound outputs yet)
-    vector<int64_t> shape({ 1, 1000, 1, 1 });
-    hstring outputName = model.OutputFeatures().GetAt(0).Name();
-    binding.Bind(outputName, TensorFloat::Create(shape));
 
     // now run the model
     printf("Running the model...\n");
@@ -149,7 +173,7 @@ int main(int argc, char* argv[]) try
     printf("model run took %d ticks\n", ticks);
 
     // get the output
-    auto resultTensor = results.Outputs().Lookup(outputName).as<TensorFloat>();
+    auto resultTensor = results.Outputs().Lookup(model.OutputFeatures().GetAt(0).Name()).as<TensorFloat16Bit>();
     auto resultVector = resultTensor.GetAsVectorView();
     PrintResults(resultVector);
     if (!FreeLibrary(dxCoreDll))
@@ -224,16 +248,31 @@ LearningModelDevice GetLearningModelDeviceFromAdapter(IDXCoreAdapter* spAdapter)
 
 bool ParseArgs(int argc, char* argv[])
 {
-    if (argc < 3)
+    for (int i = 1; i < argc; i++)
     {
-        return false;
+        string arg(argv[i]);
+        if ((_stricmp(arg.c_str(), "-Model") == 0) && i + 1 < argc)
+        {
+            modelPath = hstring(wstring_to_utf8().from_bytes(argv[++i]));
+        }
+        else if ((_stricmp(arg.c_str(), "-Image") == 0) && i + 1 < argc)
+        {
+            imagePath = hstring(wstring_to_utf8().from_bytes(argv[++i]));
+        }
+        else if ((_stricmp(arg.c_str(), "-SelectAdapter") == 0))
+        {
+            selectAdapter = true;
+        }
+        else
+        {
+            std::cout << "SqueezeNetObjectDetection_MCDM_AdapterSelection.exe [options]" << std::endl;
+            std::cout << "options: " << std::endl;
+            std::cout << "  -Model <full path to model>: Model Path (Only FP16 models)" << std::endl;
+            std::cout << "  -Image <full path to image>: Image Path" << std::endl;
+            std::cout << "  -SelectAdapter : Toggle select adapter functionality to select the device to run sample on." << std::endl;
+            return false;
+        }
     }
-    // get the model file
-    modelPath = hstring(wstring_to_utf8().from_bytes(argv[1]));
-    // get the image file
-    imagePath = hstring(wstring_to_utf8().from_bytes(argv[2]));
-    // did they pass a fourth arg?
-
     return true;
 }
 
@@ -297,7 +336,7 @@ VideoFrame LoadImageFile(hstring filePath)
     }
     catch (...)
     {
-        printf("failed to load the image file, make sure you are using fully qualified paths\r\n");
+        printf("failed to load the image file, make sure that file path (\"%ws\") is fully qualified and exists\r\n", imagePath.c_str());
         throw;
     }
 }
