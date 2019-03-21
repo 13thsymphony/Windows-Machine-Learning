@@ -229,6 +229,7 @@ HRESULT EvaluateModel(
 
 #if MCDM_BUILD
     UINT adapterIndex = args.GetGPUAdapterIndex();
+    const std::wstring& adapterName = args.GetGPUAdapterName();
 #endif
 
     try
@@ -286,26 +287,26 @@ HRESULT EvaluateModel(
             }
         }
 #if MCDM_BUILD
-        else if ((TypeHelper::GetWinmlDeviceKind(deviceType) != LearningModelDeviceKind::Cpu) && (adapterIndex != -1))
+        else if ((TypeHelper::GetWinmlDeviceKind(deviceType) != LearningModelDeviceKind::Cpu) && (adapterIndex != -1 || !adapterName.empty()))
         {
             com_ptr<::IUnknown> spUnkLearningModelDevice;
 
             constexpr D3D_FEATURE_LEVEL D3D_FEATURE_LEVEL_1_0_CORE = static_cast<D3D_FEATURE_LEVEL>(0x1000);
 
             HRESULT hr = S_OK;
-            IUnknown* pAdapter = NULL;
+            IUnknown* pAdapter = nullptr;
             D3D_FEATURE_LEVEL d3dFeatureLevel = D3D_FEATURE_LEVEL_1_0_CORE;
             D3D12_COMMAND_LIST_TYPE commandQueueType = D3D12_COMMAND_LIST_TYPE_COMPUTE;
 
             auto dxcoreDll = LoadLibrary(L"DXCore.dll");
 
-            if (dxcoreDll == NULL) throw hresult_error(GetLastError());
+            if (dxcoreDll == nullptr) throw hresult_error(GetLastError());
 
             auto dxcoreCreateAdapterFactory = reinterpret_cast<decltype(&DXCoreCreateAdapterFactory)>(
                 GetProcAddress(dxcoreDll, "DXCoreCreateAdapterFactory")
                 );
 
-            if (dxcoreCreateAdapterFactory == NULL) throw hresult_error(GetLastError());
+            if (dxcoreCreateAdapterFactory == nullptr) throw hresult_error(GetLastError());
 
             // TODO: See mscodehub WindowsAI bug 8759
             // Eventually replace with: com_ptr<IDXCoreAdapterFactory> spFactory;
@@ -314,20 +315,48 @@ HRESULT EvaluateModel(
             {
             };
             com_ptr<IDXCoreAdapterFactory_Internal> spFactory;
-
-            hr = dxcoreCreateAdapterFactory(IID_PPV_ARGS(spFactory.put()));
-            THROW_IF_FAILED(hr);
+            THROW_IF_FAILED(dxcoreCreateAdapterFactory(IID_PPV_ARGS(spFactory.put())));
 
             com_ptr<IDXCoreAdapterList> spAdapterList;
-
             const GUID dxGUIDs[] = { DXCORE_ADAPTER_ATTRIBUTE_D3D12_CORE_COMPUTE };
-
-            hr = spFactory->GetAdapterList(dxGUIDs, ARRAYSIZE(dxGUIDs), spAdapterList.put());
-            THROW_IF_FAILED(hr);
+            THROW_IF_FAILED(spFactory->GetAdapterList(dxGUIDs, ARRAYSIZE(dxGUIDs), spAdapterList.put()));
 
             com_ptr<IDXCoreAdapter> spAdapter;
-            hr = spAdapterList->GetItem(adapterIndex, spAdapter.put());
-            THROW_IF_FAILED(hr);
+
+            // Retrieve the GPU adapter index from the name or index.
+            if (adapterIndex == -1)
+            {
+                std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+                std::string asciiAdapterName = converter.to_bytes(adapterName);
+
+                for (uint32_t i = 0, adapterCount = spAdapterList->GetAdapterCount(); i < adapterCount; ++i)
+                {
+                    char driverDescription[128];
+                    THROW_IF_FAILED(spAdapterList->GetItem(static_cast<uint32_t>(i), spAdapter.put()));
+
+                    THROW_IF_FAILED(spAdapter->QueryProperty(
+                        DXCoreProperty::DriverDescription,
+                        sizeof(driverDescription),
+                        driverDescription
+                    ));
+
+                    if (strstr(driverDescription, asciiAdapterName.c_str()))
+                    {
+                        break;
+                    }
+
+                    spAdapter = nullptr;
+                }
+
+                if (!spAdapter)
+                {
+                    throw hresult_invalid_argument(L"ERROR: No matching adapter given name.");
+                }
+            }
+            else // Use index.
+            {
+                THROW_IF_FAILED(spAdapterList->GetItem(adapterIndex, spAdapter.put()));
+            }
 
             CHAR driverDescription[128];
 

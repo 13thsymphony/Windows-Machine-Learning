@@ -33,6 +33,7 @@ public:
 
 #if MCDM_BUILD
     UINT GetGPUAdapterIndex() const { return m_adapterIndex; }
+    const std::wstring& GetGPUAdapterName() const { return m_adapterName; }
 #endif
 
     bool UseRGB() const
@@ -140,6 +141,7 @@ private:
     BitmapInterpolationMode m_autoScaleInterpMode = BitmapInterpolationMode::Cubic;
 #if MCDM_BUILD
     UINT m_adapterIndex = -1;
+    std::wstring m_adapterName;
 #endif
     bool m_saveTensor = false;
     std::string m_saveTensorMode = "First";
