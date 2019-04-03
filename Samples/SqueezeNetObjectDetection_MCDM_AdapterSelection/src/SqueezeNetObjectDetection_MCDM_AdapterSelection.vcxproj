@@ -23,7 +23,7 @@
     <ProjectGuid>{DE496FF3-B068-410C-8B0D-125ED68E8C56}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>SqueezeNetObjectDetectionMCDM</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.18342.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.18870.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -173,15 +173,18 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <CopyFileToFolders Include="..\..\..\SharedContent\media\fish.png" />
-    <CopyFileToFolders Include="..\..\..\SharedContent\media\kitten_224.png" />
+    <CopyFileToFolders Include=".\kitten_224.png">
+      <DeploymentContent>true</DeploymentContent>
+    </CopyFileToFolders>
   </ItemGroup>
   <ItemGroup>
-    <CopyFileToFolders Include="..\..\SqueezeNetObjectDetection\Desktop\cpp\Labels.txt" />
+    <CopyFileToFolders Include=".\SqueezeNet_fp16.onnx">
+      <DeploymentContent>true</DeploymentContent>
+    </CopyFileToFolders>
   </ItemGroup>
   <ItemGroup>
-    <CopyFileToFolders Include="..\..\..\SharedContent\models\SqueezeNet_fp16.onnx">
-      <FileType>Document</FileType>
+    <CopyFileToFolders Include="Labels.txt">
+      <DeploymentContent>true</DeploymentContent>
     </CopyFileToFolders>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

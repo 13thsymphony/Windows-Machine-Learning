@@ -1,4 +1,18 @@
-* # Adapter Selection sample
+# About the AI on PC Developer Kit 
+
+ 
+
+The AI on PC Developer Kit is a complete kit for building deep learning inference applications on a PC. It provides a cost-competitive way to build and run AI applications using Intel® Movidius™ Vision Processing Units (VPUs), Intel® Processors and Intel® Graphics Technology (GPUs) on a laptop PC with WinML and OpenVINO™ toolkit  and delivers low-power image processing, computer vision, and deep learning inferencing for exceptional performance per watt, per dollar. 
+
+  
+
+Any usage that need continuous periods of deep learning operation with the lowest possible impact to battery life is a good usage target for the Development kit.  Some examples include are semantic segmentation on video conferencing, object detection, visual log-in, visual transformations, Emoji and Avatar creation, among others. Certain usages that need compute that is not available on CPU and GPU because they are pre occupied with other tasks can be off loaded to the VPU.  
+
+   
+
+The developer kit comes with Windows® 10 and several pre-installed tools including Microsoft WinML, Intel® Distribution of OpenVINO™ toolkit, the Intel® Distribution for Python* and Microsoft Visual Studio* 2019 for an IDE. Additionally, the kit provides several Getting Started Guides, code samples, tutorials and sample applications for WinML and OpenVINO™ to help accelerate your development. 
+
+# Adapter Selection sample
 
 This is a desktop application that demonstrates using DXCore as the replacement for DXGI. This sample is set up to use new compute-only adapters, such as the Intel MyriadX VPU (Vision Processing Unit), and run a SqueezeNet image detection model using the selected device.
 
@@ -9,20 +23,8 @@ Note: SqueezeNet was trained to work with image sizes of 224x224, so you must pr
 ## Prerequisites
 
 - [Visual Studio 2019 Release Candidate](https://devblogs.microsoft.com/visualstudio/visual-studio-2019-release-candidate-rc-now-available/)
-- TBD OS and SDK requirements.
-
-## Build the sample
-
-DXCore is not part of the 19H1 SDK; until the 19H2 SDKs are available, you must manually add back the files:
-
->\\\grfxshare\Sigma-GRFX\MCDM\18342-sample-development\dxcore-sdk
-
-Copy this file | Into this folder
-| ------------- |:-------------|
-dxcore.h |	C:\Program Files (x86)\Windows Kits\10\Include\10.0.18342.0\um
-dxcore_interface.h |	C:\Program Files (x86)\Windows Kits\10\Include\10.0.18342.0\um
-dxcore.lib |	C:\Program Files (x86)\Windows Kits\10\Lib\10.0.18342.0\um\x64
-
+- Windows SDK Version 18870
+- OS Version 18870
 
 ## Run the sample
 Usage:
