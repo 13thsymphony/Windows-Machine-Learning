@@ -1,14 +1,7 @@
 # About the AI on PC Developer Kit 
-
- 
-
 The AI on PC Developer Kit is a complete kit for building deep learning inference applications on a PC. It provides a cost-competitive way to build and run AI applications using Intel® Movidius™ Vision Processing Units (VPUs), Intel® Processors and Intel® Graphics Technology (GPUs) on a laptop PC with WinML and OpenVINO™ toolkit  and delivers low-power image processing, computer vision, and deep learning inferencing for exceptional performance per watt, per dollar. 
 
-  
-
 Any usage that need continuous periods of deep learning operation with the lowest possible impact to battery life is a good usage target for the Development kit.  Some examples include are semantic segmentation on video conferencing, object detection, visual log-in, visual transformations, Emoji and Avatar creation, among others. Certain usages that need compute that is not available on CPU and GPU because they are pre occupied with other tasks can be off loaded to the VPU.  
-
-   
 
 The developer kit comes with Windows® 10 and several pre-installed tools including Microsoft WinML, Intel® Distribution of OpenVINO™ toolkit, the Intel® Distribution for Python* and Microsoft Visual Studio* 2019 for an IDE. Additionally, the kit provides several Getting Started Guides, code samples, tutorials and sample applications for WinML and OpenVINO™ to help accelerate your development. 
 
