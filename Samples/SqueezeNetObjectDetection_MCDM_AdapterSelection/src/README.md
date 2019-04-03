@@ -13,7 +13,6 @@ Any usage that need continuous periods of deep learning operation with the lowes
 
 The developer kit comes with Windows® 10 and several pre-installed tools including Microsoft WinML, Intel® Distribution of OpenVINO™ toolkit, the Intel® Distribution for Python* and Microsoft Visual Studio* 2019 for an IDE. Additionally, the kit provides several Getting Started Guides, code samples, tutorials and sample applications for WinML and OpenVINO™ to help accelerate your development. 
 
-
 ## Prerequisites
 
 - [Visual Studio 2019 Version 16.0.0 or Newer](https://visualstudio.microsoft.com/)
