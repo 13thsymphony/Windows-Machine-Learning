@@ -38,11 +38,7 @@ int main(int argc, char* argv[]) try
     {
         return -1;
     }
-    // This IID is private and will break in 19H2.
-    // Eventually replace with: com_ptr<IDXCoreAdapterFactory> spFactory;
-    MIDL_INTERFACE("e4212a94-d660-480e-82b3-006e050a44c0")
-        IDXCoreAdapterFactory_Internal : public IDXCoreAdapterFactory {};
-    com_ptr<IDXCoreAdapterFactory_Internal> spFactory;
+    com_ptr<IDXCoreAdapterFactory> spFactory;
     THROW_IF_FAILED(DXCoreCreateAdapterFactory(IID_PPV_ARGS(spFactory.put())));
 
     com_ptr<IDXCoreAdapterList> spAdapterList;
