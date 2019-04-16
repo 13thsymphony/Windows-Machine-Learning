@@ -137,6 +137,11 @@ namespace winrt::DXCore_WinRTComponent::implementation
         return device;
     }
 
+    ///<summary>
+    /// Uses the experimental DXCore API to enumerate and return all available hardware adapters that
+    /// are capable of at least compute, i.e. both GPUs and VPUs. If no valid hardware adapters found,
+    /// returns an empty IVectorView.
+    ///</summary>
     IVectorView<LearningModelDevice> DXCoreHelper::GetAvailableDevices()
     {
         com_ptr<IDXCoreAdapterList> spAdapterList;
