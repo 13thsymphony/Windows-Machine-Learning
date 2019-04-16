@@ -3,6 +3,7 @@
 
 using namespace winrt;
 using namespace Windows::AI::MachineLearning;
+using namespace Windows::Foundation::Collections;
 
 namespace winrt::DXCore_WinRTComponent::implementation
 {
@@ -134,6 +135,40 @@ namespace winrt::DXCore_WinRTComponent::implementation
         }
 
         return device;
+    }
+
+    ///<summary>
+    /// Uses the experimental DXCore API to enumerate and return all available hardware adapters that
+    /// are capable of at least compute, i.e. both GPUs and VPUs. If no valid hardware adapters found,
+    /// returns an empty IVectorView.
+    ///</summary>
+    IVectorView<LearningModelDevice> DXCoreHelper::GetAvailableDevices()
+    {
+        com_ptr<IDXCoreAdapterList> spAdapterList;
+        const GUID dxGUIDs[] = { DXCORE_ADAPTER_ATTRIBUTE_D3D12_CORE_COMPUTE };
+
+        check_hresult(_factory->GetAdapterList(dxGUIDs, ARRAYSIZE(dxGUIDs), spAdapterList.put()));
+
+        auto devices = single_threaded_vector<LearningModelDevice>();
+        for (UINT i = 0; i < spAdapterList->GetAdapterCount(); i++)
+        {
+            com_ptr<IDXCoreAdapter> spAdapter;
+            check_hresult(spAdapterList->GetItem(i, spAdapter.put()));
+
+            bool isHardware = false;
+
+            check_hresult(spAdapter->QueryProperty(DXCoreProperty::IsHardware,
+                sizeof(isHardware),
+                &isHardware));
+
+            if (isHardware)
+            {
+                LearningModelDevice device = GetLearningModelDeviceFromAdapter(spAdapter.get());
+                devices.Append(device);
+            }
+        }
+
+        return devices.GetView();
     }
 
     LearningModelDevice DXCoreHelper::GetLearningModelDeviceFromAdapter(IDXCoreAdapter* adapter)

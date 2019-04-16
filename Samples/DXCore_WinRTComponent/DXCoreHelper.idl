@@ -7,5 +7,6 @@ namespace DXCore_WinRTComponent
         Windows.AI.MachineLearning.LearningModelDevice GetDeviceFromVpuAdapter();
         Windows.AI.MachineLearning.LearningModelDevice GetDeviceFromComputeOnlyAdapter();
         Windows.AI.MachineLearning.LearningModelDevice GetDeviceFromGraphicsAdapter();
+        Windows.Foundation.Collections.IVectorView<Windows.AI.MachineLearning.LearningModelDevice> GetAllHardwareDevices();
     }
 }
