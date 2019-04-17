@@ -142,7 +142,7 @@ namespace winrt::DXCore_WinRTComponent::implementation
     /// are capable of at least compute, i.e. both GPUs and VPUs. If no valid hardware adapters found,
     /// returns an empty IVectorView.
     ///</summary>
-    IVectorView<LearningModelDevice> DXCoreHelper::GetAvailableDevices()
+    IVectorView<LearningModelDevice> DXCoreHelper::GetAllHardwareDevices()
     {
         com_ptr<IDXCoreAdapterList> spAdapterList;
         const GUID dxGUIDs[] = { DXCORE_ADAPTER_ATTRIBUTE_D3D12_CORE_COMPUTE };
