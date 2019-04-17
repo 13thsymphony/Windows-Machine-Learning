@@ -61,6 +61,11 @@
                     <Button  x:Name="StartButton" x:Uid="StartButton" Margin="0,4,0,32" IsEnabled="False" Content="" FontSize="20" Click="Start_Click" Style="{StaticResource ButtonIconStyle}">
                     </Button>
                 </Viewbox>
+                <ComboBox  x:Name="Device" x:Uid="deviceSelector" Height = "50" Width = "200" HorizontalAlignment = "Left" SelectionChanged="Device_SelectionChanged" IsDropDownOpen="True" AllowDrop="True"  Header="Device" PlaceholderText="Pick a Device">
+                    <x:String>Intel CPU</x:String>
+                    <x:String>Intel GPU</x:String>
+                    <x:String>Intel VPU</x:String>
+                </ComboBox>
             </Grid>
         </Grid>
 

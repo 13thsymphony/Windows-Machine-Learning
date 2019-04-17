@@ -144,5 +144,22 @@ namespace Emoji8
             CurrentEmojis._currentEmoji = null;
         }
 
+        private void Device_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            string deviceName = e.AddedItems[0].ToString();
+            switch (deviceName)
+            {
+                case "Intel CPU":
+                    IntelligenceService.device_type = IntelligenceService.deviceKind.CPU;
+                    break;
+                case "Intel GPU":
+                    IntelligenceService.device_type = IntelligenceService.deviceKind.HighPerfGPU;
+                    break;
+                case "Intel VPU":
+                    IntelligenceService.device_type = IntelligenceService.deviceKind.LowPowerVPU;
+                    break;
+
+            }
+        }
     }
 }

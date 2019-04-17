@@ -2,6 +2,7 @@
 // Licensed under the MIT license. 
 
 using System;
+using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -24,6 +25,12 @@ namespace Emoji8.Services
         private bool _isInitialized = false;
         readonly DateTime _lastPositiveIdentification = DateTime.Now;
         private FaceDetector _faceDetector;
+
+        public enum deviceKind { CPU,
+                                 HighPerfGPU,
+                                 LowPowerVPU};
+
+        public static deviceKind device_type = 0;
 
         private IntelligenceService() { }
 
@@ -62,10 +69,27 @@ namespace Emoji8.Services
             {
                 Debug.WriteLine(ex.Message);
             }
+            LearningModelDevice dev = null;
+            DXCore_WinRTComponent.DXCoreHelper helper = new DXCore_WinRTComponent.DXCoreHelper();
 
-            // since we do not specify the device, we are using the default CPU option
-            _session = new LearningModelSession(_model);
-            
+            // Define the device based on user input
+            if (IntelligenceService.device_type == deviceKind.HighPerfGPU)
+            {
+                LearningModelDevice learningModelDevice = new Windows.AI.MachineLearning.LearningModelDevice(Windows.AI.MachineLearning.LearningModelDeviceKind.DirectX);
+                _session = new LearningModelSession(_model, learningModelDevice);
+            }
+            else if (IntelligenceService.device_type == deviceKind.LowPowerVPU)
+            {
+                dev = helper.GetVpuDeviceFromDXCore();
+                _session = new LearningModelSession(_model, dev);
+            }
+            else if (IntelligenceService.device_type == deviceKind.CPU)
+            {
+                LearningModelDevice learningModelDevice = new Windows.AI.MachineLearning.LearningModelDevice(Windows.AI.MachineLearning.LearningModelDeviceKind.Cpu);
+                _session = new LearningModelSession(_model, learningModelDevice);
+            }
+
+
             List<ILearningModelFeatureDescriptor> inputFeatures;
             List<ILearningModelFeatureDescriptor> outputFeatures;
 
