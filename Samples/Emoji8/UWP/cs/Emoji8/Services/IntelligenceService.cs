@@ -26,11 +26,11 @@ namespace Emoji8.Services
         readonly DateTime _lastPositiveIdentification = DateTime.Now;
         private FaceDetector _faceDetector;
 
-        public enum deviceKind { CPU,
-                                 HighPerfGPU,
-                                 LowPowerVPU};
+        public enum deviceKind { CPU, // Will run on Host CPU
+                                 HighPerfGPU, // Will run on GPU (LearningModelDeviceKind.DirectX device, not DirectXHighPerformance)
+                                 LowPowerVPU}; // Will run on Intel Movidius VPU
 
-        public static deviceKind device_type = 0;
+        public static deviceKind device_type = deviceKind.CPU; // Default this to CPU
 
         private IntelligenceService() { }
 
@@ -80,10 +80,10 @@ namespace Emoji8.Services
             }
             else if (IntelligenceService.device_type == deviceKind.LowPowerVPU)
             {
-                dev = helper.GetVpuDeviceFromDXCore();
+                dev = helper.GetDeviceFromVpuAdapter();
                 _session = new LearningModelSession(_model, dev);
             }
-            else if (IntelligenceService.device_type == deviceKind.CPU)
+            else //Default to CPU
             {
                 LearningModelDevice learningModelDevice = new Windows.AI.MachineLearning.LearningModelDevice(Windows.AI.MachineLearning.LearningModelDeviceKind.Cpu);
                 _session = new LearningModelSession(_model, learningModelDevice);

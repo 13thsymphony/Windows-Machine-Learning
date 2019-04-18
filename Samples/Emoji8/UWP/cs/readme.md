@@ -14,10 +14,14 @@ This app will give you a great end-to-end example of how you can use the Windows
 ## Assumptions
    This sample assumes you have the following installed/established:
 
-1. Windows 10 October 2018 Update [1809]
-1. Visual Studio 2017 (version 15.7.4+) with Windows 10 SDK Build 17763
+1. Windows 10 20H1 Pre-release build 18875 or greater.
+1. Visual Studio 2017 (version 15.7.4+) with Windows 10 SDK Build 18875 or greater.
 1. A Twitter developer account (if you want to enable the "Share to Twitter" feature)
 1. A front-facing camera connected to your computer
+
+##Note:
+
+	This sample has been modified to run on Intel Movidius MyriadX VPU using the DXCore WinRT Component project. Before pressing start, select Intel VPU from the device selection drop down to target the VPU.
 
 ## Steps to run the sample
 
