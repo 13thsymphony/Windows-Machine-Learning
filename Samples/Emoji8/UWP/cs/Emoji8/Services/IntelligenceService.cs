@@ -83,7 +83,7 @@ namespace Emoji8.Services
                 dev = helper.GetDeviceFromVpuAdapter();
                 _session = new LearningModelSession(_model, dev);
             }
-            else //Default to CPU
+            else // Default to CPU
             {
                 LearningModelDevice learningModelDevice = new Windows.AI.MachineLearning.LearningModelDevice(Windows.AI.MachineLearning.LearningModelDeviceKind.Cpu);
                 _session = new LearningModelSession(_model, learningModelDevice);
@@ -173,7 +173,7 @@ namespace Emoji8.Services
 
                     _binding = new LearningModelBinding(_session);
 
-                    TensorFloat outputTensor = TensorFloat.Create(_outputTensorDescriptor.Shape);
+                    TensorFloat16Bit outputTensor = TensorFloat16Bit.Create(_outputTensorDescriptor.Shape);
                     List<float> _outputVariableList = new List<float>();
 
                     // Bind inputs + outputs
