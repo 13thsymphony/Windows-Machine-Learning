@@ -15,8 +15,8 @@ The developer kit comes with Windows® 10 and several pre-installed tools includ
 ## Prerequisites
 
 - [Visual Studio 2019 Version 16.0.0 or Newer](https://visualstudio.microsoft.com/)
-- [Windows 10 - Build 18870 or higher](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewiso)
-- [Windows SDK - Build 18870 or higher](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewSDK)
+- [Windows 10 - Build 18898 or higher](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewiso)
+- [Windows SDK - Build 18898 or higher](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewSDK)
 - Visual Studio Extension for C++/WinRT
 
 ## Build the sample

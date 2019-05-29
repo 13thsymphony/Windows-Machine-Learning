@@ -76,6 +76,25 @@ namespace TesterApp
             {
                 TextOutput.Text += "Unsuccessful (no valid adapter found)\n";
             }
+
+            // All hardware adapters
+
+            IReadOnlyList<LearningModelDevice> hwLMDevices = helper.GetAllHardwareDevices();
+
+            TextOutput.Text += "Creating WinML LearningModelDevices for every hardware adapter: ";
+
+            if (hwLMDevices != null)
+            {
+                TextOutput.Text += "Successful (" + hwLMDevices.Count + " adapters total)\n";
+                foreach (LearningModelDevice dev in hwLMDevices)
+                {
+                    TextOutput.Text += "    Adapter: " + dev.AdapterId.HighPart + "-" + dev.AdapterId.LowPart + "\n";
+                }
+            }
+            else
+            {
+                TextOutput.Text += "Unsuccessful (no valid adapters found)\n";
+            }
         }
     }
 }
