@@ -1,8 +1,8 @@
 # DXCore WinRT Helper sample
 
-In early 20H1 Windows Insider Preview builds, the only way to access AI-focused accelerators with WinML is via the native C++ DXCore APIs; this will change in the final 20H1 release. This sample demonstrates an easier method to consume DXCore from within a UWP app written in C#, JavaScript, or any other supported language. It does so by wrapping the DXCore native code in a Windows Runtime Component; the WinRT Component implements helper APIs which initialize a WinML LearningModelDevice using DXCore.
+In Windows 10 20H1, you must use the native C++ DXCore APIs to access compute accelerators in your WinML application. This sample demonstrates an easier method to consume DXCore from within a UWP app written in C#, JavaScript, or any other supported language. It does so by wrapping the DXCore native code in a Windows Runtime Component; the WinRT Component implements helper APIs which initialize a WinML LearningModelDevice using DXCore.
 
-*About prerelease APIs:** Support for compute-only adapters and the DXCore API are in developer preview during 20H1. Functionality, performance and reliability are all incomplete and the API surface may change.
+*About prerelease APIs:** Support for compute accelerators and the DXCore API are in developer preview during 20H1. Functionality, performance and reliability are all incomplete and the API surface may change.
 
 ## About the AI on PC Developer Kit
 
@@ -15,8 +15,8 @@ The developer kit comes with Windows® 10 and several pre-installed tools includ
 ## Prerequisites
 
 - [Visual Studio 2019 Version 16.0.0 or Newer](https://visualstudio.microsoft.com/)
-- [Windows 10 - Build 18908 or higher](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewiso)
-- [Windows SDK - Build 18908 or higher](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewSDK)
+- [Windows 10 - Build 18925 or higher](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewiso)
+- [Windows SDK - Build 18925 or higher](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewSDK)
 - Visual Studio Extension for C++/WinRT
 
 ## Build the sample
