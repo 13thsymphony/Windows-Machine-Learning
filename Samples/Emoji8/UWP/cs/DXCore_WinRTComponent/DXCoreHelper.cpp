@@ -13,7 +13,7 @@ namespace winrt::DXCore_WinRTComponent::implementation
     }
 
     ///<summary>
-    /// Uses the experimental DXCore API to specifically target the Intel MyriadX VPU;
+    /// Uses the DXCore API to specifically target the Intel MyriadX VPU;
     /// returns nullptr if no VPU is found.
     ///</summary>
     Windows::AI::MachineLearning::LearningModelDevice DXCoreHelper::GetDeviceFromVpuAdapter()
@@ -21,21 +21,23 @@ namespace winrt::DXCore_WinRTComponent::implementation
         com_ptr<IDXCoreAdapterList> spAdapterList;
         const GUID dxGUIDs[] = { DXCORE_ADAPTER_ATTRIBUTE_D3D12_CORE_COMPUTE };
 
-        check_hresult(_factory->GetAdapterList(dxGUIDs, ARRAYSIZE(dxGUIDs), spAdapterList.put()));
+        check_hresult(_factory->CreateAdapterList(ARRAYSIZE(dxGUIDs), dxGUIDs, IID_PPV_ARGS(&spAdapterList)));
 
         com_ptr<IDXCoreAdapter> vpuAdapter;
         for (UINT i = 0; i < spAdapterList->GetAdapterCount(); i++)
         {
             com_ptr<IDXCoreAdapter> spAdapter;
-            check_hresult(spAdapterList->GetItem(i, spAdapter.put()));
+            check_hresult(spAdapterList->GetAdapter(i, IID_PPV_ARGS(&spAdapter)));
 
             DXCoreHardwareID dxCoreHardwareID;
-            check_hresult(spAdapter->GetHardwareID(&dxCoreHardwareID));
+            check_hresult(spAdapter->GetProperty(
+                DXCoreAdapterProperty::HardwareID,
+                sizeof(dxCoreHardwareID),
+                &dxCoreHardwareID));
 
-            if (dxCoreHardwareID.vendorId == 0x8086 && dxCoreHardwareID.deviceId == 0x6200) // VPU adapter
+            if (dxCoreHardwareID.vendorID == 0x8086 && dxCoreHardwareID.deviceID == 0x6200)
             {
-                // For the developer preview, DXCore requires you to specifically choose the desired adapter;
-                // In this case, the vendor and device IDs are for the Intel MyriadX VPU
+                // Use the specific vendor and device IDs for the Intel MyriadX VPU.
                 vpuAdapter = spAdapter;
             }
         }
@@ -50,7 +52,7 @@ namespace winrt::DXCore_WinRTComponent::implementation
     }
 
     ///<summary>
-    /// Uses the experimental DXCore API to select a hardware adapter that supports compute but not graphics,
+    /// Uses the DXCore API to select a compute accelerator, which supports compute but not graphics,
     /// i.e. an MCDM adapter such as a VPU. Uses the first valid hardware adapter found; if there are none
     /// returns nullptr.
     ///</summary>
@@ -59,23 +61,24 @@ namespace winrt::DXCore_WinRTComponent::implementation
         com_ptr<IDXCoreAdapterList> spAdapterList;
         const GUID dxGUIDs[] = { DXCORE_ADAPTER_ATTRIBUTE_D3D12_CORE_COMPUTE };
 
-        check_hresult(_factory->GetAdapterList(dxGUIDs, ARRAYSIZE(dxGUIDs), spAdapterList.put()));
+        check_hresult(_factory->CreateAdapterList(ARRAYSIZE(dxGUIDs), dxGUIDs, IID_PPV_ARGS(&spAdapterList)));
 
         com_ptr<IDXCoreAdapter> hwAdapter;
         for (UINT i = 0; i < spAdapterList->GetAdapterCount(); i++)
         {
             com_ptr<IDXCoreAdapter> spAdapter;
-            check_hresult(spAdapterList->GetItem(i, spAdapter.put()));
+            check_hresult(spAdapterList->GetAdapter(i, IID_PPV_ARGS(&spAdapter)));
 
             // Reject adapters that support both compute and graphics, e.g. GPUs.
-            if (spAdapter->IsDXAttributeSupported(DXCORE_ADAPTER_ATTRIBUTE_D3D12_GRFX))
+            if (spAdapter->IsAttributeSupported(DXCORE_ADAPTER_ATTRIBUTE_D3D12_GRAPHICS))
             {
                 continue;
             }
 
             bool isHardware = false;
 
-            check_hresult(spAdapter->QueryProperty(DXCoreProperty::IsHardware,
+            check_hresult(spAdapter->GetProperty(
+                DXCoreAdapterProperty::IsHardware,
                 sizeof(isHardware),
                 &isHardware));
 
@@ -96,7 +99,7 @@ namespace winrt::DXCore_WinRTComponent::implementation
     }
 
     ///<summary>
-    /// Uses the experimental DXCore API to select a hardware adapter that is capable of both
+    /// Uses the DXCore API to select a hardware adapter that is capable of both
     /// compute and graphics, i.e. a GPU. Uses the first valid hardware adapter found; if there are none
     /// returns nullptr.
     ///</summary>
@@ -105,19 +108,20 @@ namespace winrt::DXCore_WinRTComponent::implementation
         com_ptr<IDXCoreAdapterList> spAdapterList;
         const GUID dxGUIDs[] = {
             DXCORE_ADAPTER_ATTRIBUTE_D3D12_CORE_COMPUTE,
-            DXCORE_ADAPTER_ATTRIBUTE_D3D12_GRFX };
+            DXCORE_ADAPTER_ATTRIBUTE_D3D12_GRAPHICS };
 
-        check_hresult(_factory->GetAdapterList(dxGUIDs, ARRAYSIZE(dxGUIDs), spAdapterList.put()));
+        check_hresult(_factory->CreateAdapterList(ARRAYSIZE(dxGUIDs), dxGUIDs, IID_PPV_ARGS(&spAdapterList)));
 
         com_ptr<IDXCoreAdapter> hwAdapter;
         for (UINT i = 0; i < spAdapterList->GetAdapterCount(); i++)
         {
             com_ptr<IDXCoreAdapter> spAdapter;
-            check_hresult(spAdapterList->GetItem(i, spAdapter.put()));
+            check_hresult(spAdapterList->GetAdapter(i, IID_PPV_ARGS(&spAdapter)));
 
             bool isHardware = false;
 
-            check_hresult(spAdapter->QueryProperty(DXCoreProperty::IsHardware,
+            check_hresult(spAdapter->GetProperty(
+                DXCoreAdapterProperty::IsHardware,
                 sizeof(isHardware),
                 &isHardware));
 
@@ -138,26 +142,27 @@ namespace winrt::DXCore_WinRTComponent::implementation
     }
 
     ///<summary>
-    /// Uses the experimental DXCore API to enumerate and return all available hardware adapters that
-    /// are capable of at least compute, i.e. both GPUs and VPUs. If no valid hardware adapters found,
-    /// returns an empty IVectorView.
+    /// Uses the DXCore API to enumerate and return all available hardware adapters that
+    /// are capable of at least compute, i.e. both GPUs and compute accelerators.
+    /// If no valid hardware adapters are found, returns an empty IVectorView.
     ///</summary>
     IVectorView<LearningModelDevice> DXCoreHelper::GetAllHardwareDevices()
     {
         com_ptr<IDXCoreAdapterList> spAdapterList;
         const GUID dxGUIDs[] = { DXCORE_ADAPTER_ATTRIBUTE_D3D12_CORE_COMPUTE };
 
-        check_hresult(_factory->GetAdapterList(dxGUIDs, ARRAYSIZE(dxGUIDs), spAdapterList.put()));
+        check_hresult(_factory->CreateAdapterList(ARRAYSIZE(dxGUIDs), dxGUIDs, IID_PPV_ARGS(&spAdapterList)));
 
         auto devices = single_threaded_vector<LearningModelDevice>();
         for (UINT i = 0; i < spAdapterList->GetAdapterCount(); i++)
         {
             com_ptr<IDXCoreAdapter> spAdapter;
-            check_hresult(spAdapterList->GetItem(i, spAdapter.put()));
+            check_hresult(spAdapterList->GetAdapter(i, IID_PPV_ARGS(&spAdapter)));
 
             bool isHardware = false;
 
-            check_hresult(spAdapter->QueryProperty(DXCoreProperty::IsHardware,
+            check_hresult(spAdapter->GetProperty(
+                DXCoreAdapterProperty::IsHardware,
                 sizeof(isHardware),
                 &isHardware));
 
@@ -175,9 +180,6 @@ namespace winrt::DXCore_WinRTComponent::implementation
     {
         D3D_FEATURE_LEVEL d3dFeatureLevel = D3D_FEATURE_LEVEL_1_0_CORE;
         D3D12_COMMAND_LIST_TYPE commandQueueType = D3D12_COMMAND_LIST_TYPE_COMPUTE;
-
-        // Need to enable experimental features to create D3D12 Device with adapter that has compute only capabilities.
-        check_hresult(D3D12EnableExperimentalFeatures(1, &D3D12ComputeOnlyDevices, nullptr, 0));
 
         // create D3D12Device
         com_ptr<ID3D12Device> d3d12Device;
