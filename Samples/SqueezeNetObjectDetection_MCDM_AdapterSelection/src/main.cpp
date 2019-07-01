@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) try
     com_ptr<IDXCoreAdapterList> spAdapterList;
     const GUID dxGUIDs[] = { DXCORE_ADAPTER_ATTRIBUTE_D3D12_CORE_COMPUTE };
 
-    THROW_IF_FAILED(spFactory->GetAdapterList(dxGUIDs, ARRAYSIZE(dxGUIDs), spAdapterList.put()));
+    THROW_IF_FAILED(spFactory->CreateAdapterList(ARRAYSIZE(dxGUIDs), dxGUIDs, spAdapterList.put()));
 
     CHAR driverDescription[128];
     std::map<int, com_ptr<IDXCoreAdapter>> validAdapters;
@@ -52,21 +52,21 @@ int main(int argc, char* argv[]) try
     for (UINT i = 0; i < spAdapterList->GetAdapterCount(); i++)
     {
         com_ptr<IDXCoreAdapter> spAdapter;
-        THROW_IF_FAILED(spAdapterList->GetItem(i, spAdapter.put()));
+        THROW_IF_FAILED(spAdapterList->GetAdapter(i, IID_PPV_ARGS(&spAdapter)));
         // If the adapter is a software adapter then don't consider it
         bool isHardware;
         DXCoreHardwareID dxCoreHardwareID;
-        THROW_IF_FAILED(spAdapter->QueryProperty(DXCoreProperty::IsHardware, sizeof(isHardware), &isHardware));
-        THROW_IF_FAILED(spAdapter->GetHardwareID(&dxCoreHardwareID));
-        if (isHardware && (dxCoreHardwareID.vendorId != 0x1414 || dxCoreHardwareID.deviceId != 0x8c))
+        THROW_IF_FAILED(spAdapter->GetProperty(DXCoreAdapterProperty::IsHardware, sizeof(isHardware), &isHardware));
+        THROW_IF_FAILED(spAdapter->GetProperty(DXCoreAdapterProperty::HardwareID, sizeof(dxCoreHardwareID), &dxCoreHardwareID));
+
+        if (isHardware && (dxCoreHardwareID.vendorID != 0x1414 || dxCoreHardwareID.deviceID != 0x8c))
         {
-            if (dxCoreHardwareID.vendorId == 0x8086 && dxCoreHardwareID.deviceId == 0x6200) // VPU adapter
+            if (dxCoreHardwareID.vendorID == 0x8086 && dxCoreHardwareID.deviceID == 0x6200)
             {
-                // For the developer preview, DXCore requires you to specifically choose the desired adapter;
-                // In this case, the vendor and device IDs are for the Intel MyriadX VPU
+                // Use the specific vendor and device IDs for the Intel MyriadX VPU.
                 vpuAdapter = spAdapter.get();
             }
-            THROW_IF_FAILED(spAdapter->QueryProperty(DXCoreProperty::DriverDescription, sizeof(driverDescription), driverDescription));
+            THROW_IF_FAILED(spAdapter->GetProperty(DXCoreAdapterProperty::DriverDescription, sizeof(driverDescription), driverDescription));
             printf("Index: %d, Description: %s\n", i, driverDescription);
             validAdapters[i] = spAdapter;
         }
@@ -93,8 +93,8 @@ int main(int argc, char* argv[]) try
                 printf("Invalid index, please try again.\n");
             }
             com_ptr<IDXCoreAdapter> selectedAdapter;
-            THROW_IF_FAILED(spAdapterList->GetItem(selectedIndex, selectedAdapter.put()));
-            THROW_IF_FAILED(selectedAdapter->QueryProperty(DXCoreProperty::DriverDescription, sizeof(driverDescription), driverDescription));
+            THROW_IF_FAILED(spAdapterList->GetAdapter(selectedIndex, IID_PPV_ARGS(&selectedAdapter)));
+            THROW_IF_FAILED(selectedAdapter->GetProperty(DXCoreAdapterProperty::DriverDescription, sizeof(driverDescription), driverDescription));
             printf("Selected adapter at index %d, description: %s\n", selectedIndex, driverDescription);
             chosenAdapter = validAdapters[selectedIndex].get();
         }
@@ -179,11 +179,11 @@ LearningModelDevice GetLearningModelDeviceFromAdapter(IDXCoreAdapter* spAdapter)
     D3D_FEATURE_LEVEL d3dFeatureLevel = D3D_FEATURE_LEVEL_1_0_CORE;
     D3D12_COMMAND_LIST_TYPE commandQueueType = D3D12_COMMAND_LIST_TYPE_COMPUTE;
 
-    // Check if adapter selected has DXCORE_ADAPTER_ATTRIBUTE_D3D12_GRFX attribute selected. If so,
+    // Check if adapter selected has DXCORE_ADAPTER_ATTRIBUTE_D3D12_GRAPHICS attribute selected. If so,
     // then GPU was selected that has D3D12 and D3D11 capabilities. It would be the most stable to
     // use DXGI to enumerate GPU and use D3D_FEATURE_LEVEL_11_0 so that image tensorization for
     // video frames would be able to happen on the GPU.
-    if (spAdapter->IsDXAttributeSupported(DXCORE_ADAPTER_ATTRIBUTE_D3D12_GRFX))
+    if (spAdapter->IsAttributeSupported(DXCORE_ADAPTER_ATTRIBUTE_D3D12_GRAPHICS))
     {
         d3dFeatureLevel = D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_11_0;
         com_ptr<IDXGIFactory4> dxgiFactory4;
@@ -191,14 +191,9 @@ LearningModelDevice GetLearningModelDeviceFromAdapter(IDXCoreAdapter* spAdapter)
 
         // If DXGI factory creation was successful then get the IDXGIAdapter from the LUID acquired from the spAdapter
         LUID adapterLuid;
-        THROW_IF_FAILED(spAdapter->GetLUID(&adapterLuid));
+        THROW_IF_FAILED(spAdapter->GetProperty(DXCoreAdapterProperty::InstanceLuid, sizeof(adapterLuid), &adapterLuid));
         THROW_IF_FAILED(dxgiFactory4->EnumAdapterByLuid(adapterLuid, __uuidof(IDXGIAdapter), spDxgiAdapter.put_void()));
         pAdapter = spDxgiAdapter.get();
-    }
-    else
-    {
-        // Need to enable experimental features to create D3D12 Device with adapter that has compute only capabilities.
-        THROW_IF_FAILED(D3D12EnableExperimentalFeatures(1, &D3D12ComputeOnlyDevices, nullptr, 0));
     }
 
     // create D3D12Device

@@ -23,7 +23,7 @@
     <ProjectGuid>{DE496FF3-B068-410C-8B0D-125ED68E8C56}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>SqueezeNetObjectDetectionMCDM</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.18908.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.18925.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
