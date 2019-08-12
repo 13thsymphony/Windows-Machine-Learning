@@ -10,7 +10,7 @@ namespace Emoji8
 {
     class Constants
     {
-        public const string MODEL_PATH = "ms-appx:///Models//model.onnx";
+        public const string MODEL_PATH = "ms-appx:///Models//emotionferplus_fp16.onnx";
 
         public const float CLASSIFICATION_CERTAINTY_THRESHOLD = 0.2f;
         public const int CLASSIFICATION_SENSITIVITY_IN_SECONDS = 0;

@@ -149,7 +149,7 @@ namespace Emoji8.Services
 
                     _binding = new LearningModelBinding(_session);
 
-                    TensorFloat outputTensor = TensorFloat.Create(_outputTensorDescriptor.Shape);
+                    TensorFloat16Bit outputTensor = TensorFloat16Bit.Create(_outputTensorDescriptor.Shape);
                     List<float> _outputVariableList = new List<float>();
 
                     // Bind inputs + outputs
